@@ -1,0 +1,1017 @@
+Alchemy Uni Cource 
+
+           -- -- 1 WEEK -- --
+----------------------------------------
+----------------------------------------
+----- 1. Your Goal: Find the Color -----
+
+const { sha256 } = require("ethereum-cryptography/sha256");
+const { toHex, utf8ToBytes } = require("ethereum-cryptography/utils");
+
+// the possible colors that the hash could represent
+const COLORS = ['red', 'green', 'blue', 'yellow', 'pink', 'orange'];
+
+// given a hash, return the color that created the hash'
+
+function findColor(hash) {
+    return COLORS.find(x => toHex(sha256(utf8ToBytes(x))) === toHex(hash));
+}
+
+module.exports = findColor
+
+
+// Given a SHA256 hash, find the color input that would generate that hash. You can assume that all the hashes be generated only from colors provided in the COLORS array. To take the hash of a color, first use utf8ToBytes to translate the string to bytes. Then, use sha256 to hash it. When you want to compare two hashes, first use toHex to turn each hash from a Uint8Array to a string of hexadecimal characters. //
+
+
+---- 1. Tests ----
+
+const {assert} = require('chai');
+const findColor = require('../index');
+const { sha256 } = require("ethereum-cryptography/sha256");
+const { utf8ToBytes } = require("ethereum-cryptography/utils");
+
+const COLORS = ['red', 'green', 'blue', 'yellow', 'pink', 'orange'];
+
+describe('findColor', () => {
+    COLORS.forEach((color) => {
+        it(`should work for ${color}`, () => {
+            assert.equal(findColor(sha256(utf8ToBytes(color))), color);
+        });
+    });
+});
+
+----------------------------------------
+----------------------------------------
+
+
+Public Key Cryptography
+
+Let's learn public key cryptography by applying it! 💪
+In this series of exercises we will be focused on Public Key Cryptography with ECDSA (Elliptic Curve Digital Signature Algorithm). The specific algorithm we will use is secp256k1, which is the curve used for both Bitcoin and Ethereum. This set of code exercises will be instrumental towards understanding how we can use public key cryptography throughout the rest of the course. You will learn how to sign a hashed message, recover the public key from the signature and transform the public key into the user's ethereum address.
+These concepts will help us understand how the blockchain protocol works and provide us with the tools to use digital signature authentication when we need to prove a user's intention. This will be crucial knowledge when building applications interacting with blockchain as well as smart contracts on the blockchain.
+Let's jump in!
+
+----------------------------------------
+----------------------------------------
+----- 1.2: Hash Message Example  ----- 
+
+// turn this into an array of bytes, the expected format for the hash algorithm
+const bytes = utf8ToBytes("Vote Yes on Proposal 327");
+// hash the message using keccak256
+const hash = keccak256(bytes); 
+
+console.log(toHex(hash)); // 928c3f25193b338b89d5646bebbfa2436c5daa1d189f9c565079dcae379a43be
+
+
+ // 🏁 Your Goal: Hash the Message
+
+// The noble-secp256k1 library (v 1.7.1) provides us with all of the cryptography we're going to need throughout this course. Let's make use of the keccak256 hash and utf8ToBytes function.
+Please note, this tutorial will require functions documented in release version 1.7.1 of the noble-secp256k1 library. Any further links in this tutorial will link directly to version 1.7.1 of the noble-secp256k1 documentation.
+Your first step is to take the string message passed in and turn it into an array of UTF-8 bytes. You can do so with the utf8ToBytes function.
+Then take the keccak256 hash of those bytes and return this value.
+
+
+    ----- 1.2 hashMessage.js -----
+
+
+const { keccak256 } = require("ethereum-cryptography/keccak");
+const { utf8ToBytes } = require("ethereum-cryptography/utils");
+
+function hashMessage(message) {
+    return keccak256(utf8ToBytes(message));
+
+}
+
+module.exports = hashMessage;
+
+
+---- 1.2 Tests ----
+
+const hashMessage = require('../hashMessage');
+const { assert } = require('chai');
+const { toHex } = require("ethereum-cryptography/utils");
+
+const helloWorldHex = '47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad';
+
+describe('Hash Message', () => {
+    it('should return the keccak256 hash of hello world', () => {
+        const messageHash = hashMessage('hello world');
+
+        assert.equal(toHex(messageHash), helloWorldHex);
+    });
+});
+
+
+
+
+
+
+
+
+
+
+
+----------------------------------------
+----------------------------------------
+
+----- 2.     Sign Message ----- 
+
+// Signing the Hash
+
+It's time to sign a message using our private key to prove our intention!
+When signing a message with secp256k1 we can return the signature along with the recovery bit, allowing us to recover the public key from the signature. This will allow a blockchain node to take a signature of a transaction and understand which address authenticated this particular transaction. // 
+
+
+----------------------------------------
+-- sign_message.js --
+
+const secp = require("ethereum-cryptography/secp256k1");
+const hashMessage = require('./hashMessage');
+
+const PRIVATE_KEY = "6b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e";
+
+async function signMessage(msg) {
+    const messageHash = hashMessage(msg);
+    return secp.sign(messageHash, PRIVATE_KEY, { recovered: true });
+}
+
+module.exports = signMessage;
+
+
+----------------------------------------
+-- hash_message.js --
+
+const { keccak256 } = require("ethereum-cryptography/keccak");
+const { utf8ToBytes } = require("ethereum-cryptography/utils");
+
+function hashMessage(message) {
+    return keccak256(utf8ToBytes(message));
+}
+
+module.exports = hashMessage;
+
+----------------------------------------
+
+
+// Using options to return a recoveryBit
+
+The syntax for the third optional parameter of the secp sign function is a little tricky to get right... here's how to properly use the third parameter in order to return a recoveryBit from the signature process - which will later be used to recover a public key using just the messageHash, signature, and recoveryBit:
+return secp.sign(messageHash, PRIVATE_KEY, { recovered: true });
+Just include the third paramater in an object that has the recovered key set to true. ✅ // 
+
+---- 2. Tests ----
+
+const signMessage = require('../signMessage');
+const hashMessage = require('../hashMessage');
+const { assert } = require('chai');
+const secp = require("ethereum-cryptography/secp256k1");
+const { toHex } = require("ethereum-cryptography/utils");
+
+const PRIVATE_KEY = "6b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e";
+
+describe('Sign Message', () => {
+    it('should return both a signature and a recovery bit', async () => {
+        const response = await signMessage('hello world');
+
+        const errMessage = "expected signMessage to return both a signature and recovery bit!";
+        assert(response.length, errMessage);
+        assert(response.length === 2, errMessage);
+
+        const [signature, recoveryBit] = response;
+        assert(signature.length, "expected signature to be a Uint8Array");
+        assert(typeof recoveryBit === "number", "expected the recovery bit to be a number");
+    });
+
+    it('should have been signed by the same private key', async () => {
+        const [sig, recoveryBit] = await signMessage('hello world');
+        const messageHash = hashMessage('hello world');
+        const recovered = secp.recoverPublicKey(messageHash, sig, recoveryBit);
+
+        const publicKey = secp.getPublicKey(PRIVATE_KEY);
+        assert.equal(toHex(recovered), toHex(publicKey));
+    });
+});
+
+
+
+
+
+
+
+
+----------------------------------------
+----------------------------------------
+
+    ----- 3.   Recover Key   ----- 
+
+Recover the Public Key
+
+When the signature is passed with all of its components (recovery bit included), the public key can be recovered. This means that blockchain nodes will be able to understand who signed the transaction that was sent to them. A transaction could indicate the user would like to send 1 ether to another address and provide a certain transaction fee. Since the signature signs the hash containing this intention, it is enough to authenticate this action entirely.
+
+🏁 Your Goal: Recover the Key
+
+Given a message, signature, and recoveryBit find the public key and return it! Be sure to hash the message when passing it to the recovery method.
+Use the noble-secp256k1 library documentation to find the correct method and parameters for this one.
+
+Remember to check version 1.7.1 of the library's documentation!
+
+----------------------------------------
+-- recoverKey.js --
+
+
+const secp = require("ethereum-cryptography/secp256k1");
+const hashMessage = require("./hashMessage");
+
+async function recoverKey(message, signature, recoveryBit) {
+    const messageHash = hashMessage(message);
+    return secp.recoverPublicKey(messageHash, signature, recoveryBit);
+}
+
+module.exports = recoverKey;
+
+
+---- 3. Tests ----
+
+
+const signMessage = require('../signMessage');
+const recover = require('../recoverKey');
+const secp = require("ethereum-cryptography/secp256k1");
+const { assert } = require('chai');
+const { toHex } = require("ethereum-cryptography/utils");
+
+const PRIVATE_KEY = "6b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e";
+
+describe('Recover Key', () => {
+    it('should recover the public key from a signed message', async () => {
+        const [sig, recoveryBit] = await signMessage('hello world');
+
+        const publicKey = secp.getPublicKey(PRIVATE_KEY);
+
+        const recovered = await recover('hello world', sig, recoveryBit);
+
+        assert.equal(toHex(recovered), toHex(publicKey));
+    });
+});
+
+
+Now you can see how a blockchain node is able to authenticate transactions! 💪
+
+Next let's turn that public key to an ethereum address.
+
+
+
+
+
+
+
+
+----------------------------------------
+----------------------------------------
+
+     -----  4: Key to Address  ----- 
+
+
+
+// Public Key to Address
+
+Bitcoin and Ethereum both have a transformation process to take a public key and turn it into an address. For Bitcoin it includes a checksum and Base58 encoding. Ethereum's address transformation is quite a bit simpler, its address is the last 20 bytes of the hash of the public key.
+
+The important thing to recognize here is that the address is differentiated from the public key, but you can always derive the address if you have the public key.
+
+🏁 Your Goal: Get Ethereum Address
+
+Let's get the ethereum address from the public key!
+
+First step, you'll need to take the first byte off the public key. The first byte indicates the format of the key, whether it is in the compressed format or not. The publicKey will be a Uint8Array so you can use the slice method to slice off the first byte.
+Next, take the keccak hash of the rest of the public key.
+Finally, take the last 20 bytes of the keccak hash and return this. Once again, you can make use of the slice method. //
+
+----------------------------------------
+getAddress.js
+
+const secp = require("ethereum-cryptography/secp256k1");
+const { keccak256 } = require("ethereum-cryptography/keccak");
+
+function getAddress(publicKey) {
+    // the first byte indicates whether this is in compressed form or not
+    return keccak256(publicKey.slice(1)).slice(-20);
+}
+
+module.exports = getAddress; 
+
+
+---- 4. Tests ----
+
+
+const getAddress = require('../getAddress');
+const secp = require("ethereum-cryptography/secp256k1");
+const { assert } = require('chai');
+const { toHex } = require("ethereum-cryptography/utils");
+
+const PRIVATE_KEY = "6b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e";
+const EXPECTED_ADDRESS = "16bB6031CBF3a12B899aB99D96B64b7bbD719705";
+
+describe('Get Address', () => {
+    it('should get the address from a public key', async () => {
+        const publicKey = secp.getPublicKey(PRIVATE_KEY);
+        
+        const address = toHex(getAddress(publicKey));
+
+        assert.equal(address.toLowerCase(), EXPECTED_ADDRESS.toLowerCase());
+    });
+});
+
+
+
+
+
+
+
+----------------------------------------
+----------------------------------------
+
+     -----  2: Mine Block  ----- 
+
+
+
+// Mining Blocks
+
+In Bitcoin, blocks contain quite a bit of information in their header: the software version, a timestamp, the merkle root of its transactions, the previous block hash, and the difficulty.
+
+🏁 Your Goal: Mine Block
+
+The goal of this stage is to update the mine() fuction to create a new block with a unique identifier and add it to our blocks array.
+
+For the purposes of this mining exercise, our block will be an object with a single property: an id that is equal to the block height prior to it being mined.
+
+1. Update the mine() function to create a new block object with a single property: id
+2. Set the id property to the block height prior to the new block being added
+3. Push the block object into the blocks array
+
+
+const SHA256 = require('crypto-js/sha256');
+const TARGET_DIFFICULTY = BigInt(0x0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
+const MAX_TRANSACTIONS = 10;
+const mempool = [];
+const blocks = [];
+
+function addTransaction(transaction) {
+    mempool.push(transaction);
+}
+
+function mine() {
+    const block = { id: blocks.length }
+    blocks.push(block);
+}
+
+module.exports = {
+    TARGET_DIFFICULTY,
+    MAX_TRANSACTIONS,
+    addTransaction,
+    mine,
+    mempool,
+    blocks,
+};
+
+
+
+---- 2: Mine Block \ Tests ----
+
+const { assert } = require('chai');
+const { mine, blocks } = require('../index');
+const SHA256 = require('crypto-js/sha256');
+
+describe('mine', () => {
+    describe('first block', () => {
+        let hash;
+        before(() => {
+            hash = mine();
+        });
+        it('should add to the blocks', () => {
+            assert.equal(blocks.length, 1);
+        });
+        it('should store the expected id', () => {
+            const lastBlock = blocks[blocks.length - 1];
+            assert(lastBlock.id != null, "did not find an id property on the block");
+            assert.equal(lastBlock.id, 0);
+        });
+    });
+    describe('second block', () => {
+        let hash;
+        before(() => {
+            hash = mine();
+        });
+        it('should add to the blocks', () => {
+            assert.equal(blocks.length, 2);
+        });
+        it('should store the expected id', () => {
+            const lastBlock = blocks[blocks.length - 1];
+            assert(lastBlock.id != null, "did not find an id property on the block");
+            assert.equal(lastBlock.id, 1);
+        });
+    });
+});
+
+
+
+----------------------------------------
+----------------------------------------
+
+     -----  3: Block Hash  ----- 
+
+/// Block Hash
+
+Typically, all the information in the header of the block is hashed together to create a unique hash based on those properties.
+
+If anything changes in the header, it will affect the hash. Since each block also contains the hash of the block before it, it will affect every future block as well.
+
+🏁 Your Goal: Add the Hash
+
+Stringify the block object using JSON.stringify
+Take the SHA256 hash of the stringified block object
+Set the resulting value to a hash property on the mined block just before mining it
+
+⚠️ Do not add the hash property on the block until after calculating the hash!
+
+///
+
+
+
+const SHA256 = require('crypto-js/sha256');
+const TARGET_DIFFICULTY = BigInt(0x0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
+const MAX_TRANSACTIONS = 10;
+const mempool = [];
+const blocks = [];
+
+function addTransaction(transaction) {
+    mempool.push(transaction);
+}
+
+function mine() {
+    const block = { id: blocks.length }
+    const hash = SHA256(JSON.stringify(block));
+    blocks.push({ ...block, hash });
+
+    //the spread operator (...) is used to create a new object by merging the properties of two or more objects. Let's break down why it's used in this context:
+}
+
+module.exports = {
+    TARGET_DIFFICULTY,
+    MAX_TRANSACTIONS,
+    addTransaction,
+    mine,
+    mempool,
+    blocks,
+};
+
+---- 3: Block Hash \ Tests ----
+
+const { assert } = require('chai');
+const { mine, blocks } = require('../index');
+const SHA256 = require('crypto-js/sha256');
+
+describe('mine', () => {
+    describe('first block', () => {
+        let hash;
+        before(() => {
+            hash = mine();
+        });
+        it('should add to the blocks', () => {
+            assert.equal(blocks.length, 1);
+        });
+        it('should return the expected hash', () => {
+            const expectedHash = SHA256(JSON.stringify({ id: 0 }));
+            const lastBlock = blocks[blocks.length - 1];
+            assert(lastBlock.hash, "did not find a hash property on the block");
+            assert.equal(lastBlock.hash.toString(), expectedHash.toString());
+        });
+    });
+    describe('second block', () => {
+        let hash;
+        before(() => {
+            hash = mine();
+        });
+        it('should add to the blocks', () => {
+            assert.equal(blocks.length, 2);
+        });
+        it('should return the expected hash', () => {
+            const expectedHash = SHA256(JSON.stringify({ id: 1 }));
+            const lastBlock = blocks[blocks.length - 1];
+            assert(lastBlock.hash, "did not find a hash property on the block");
+            assert.equal(lastBlock.hash.toString(), expectedHash.toString());
+        });
+    });
+});
+
+
+
+
+
+
+----------------------------------------
+----------------------------------------
+
+     -----  4: Mine TX ----- 
+
+//
+Block Size
+
+In Bitcoin, there is a specific block size limit that cannot be exceeded. The number of transactions that will fit inside of a block varies due to transactions being of all different sizes.
+
+For the purposes of this exercise, we will use the MAX_TRANSACTIONS constant.
+
+📖 Deciding the block size in bitcoin has been quite controversial!
+
+🏁 Your Goal: Mine Transactions
+
+Inside the mine function, pull transactions off the mempool and include them in the block in an array called transactions
+Remove each transaction you include in the block from the mempool
+Add the transactions array to the block before hashing the block
+⚠️ Do not include more transactions in the block than the MAX_TRANSACTIONS limit.
+//
+
+
+ ----- index.js -----
+
+const SHA256 = require('crypto-js/sha256');
+const TARGET_DIFFICULTY = BigInt(0x0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
+const MAX_TRANSACTIONS = 10;
+const mempool = [];
+const blocks = [];
+
+function addTransaction(transaction) {
+    mempool.push(transaction);
+}
+
+function mine() {
+    const block = { id: blocks.length, transactions: [] }; // Initialize transactions array
+    while (block.transactions.length < MAX_TRANSACTIONS && mempool.length > 0) {
+        const transaction = mempool.shift(); // Pull a transaction from the mempool
+        block.transactions.push(transaction); // Include the transaction in the block
+    }
+    const hash = SHA256(JSON.stringify(block)); // Hash the block including transactions
+    blocks.push({ ...block, hash }); // Add the block to the blockchain
+}
+
+module.exports = {
+    TARGET_DIFFICULTY,
+    MAX_TRANSACTIONS,
+    addTransaction,
+    mine,
+    mempool,
+    blocks,
+};
+
+
+
+-----------------
+      test.js
+-----------------
+
+
+const { assert } = require('chai');
+const { mine, blocks, mempool, addTransaction } = require('../index');
+const SHA256 = require('crypto-js/sha256');
+
+describe('mine', () => {
+    describe('with 5 mempool transactions', () => {
+        before(() => {
+            for(let i = 0; i < 5; i++) {
+                addTransaction({ sender: 'bob', to: 'alice' });
+            }
+        });
+        describe('after mining', () => {
+            before(() => {
+                mine();
+            });
+            it('should add to the blocks', () => {
+                assert.equal(blocks.length, 1);
+            });
+            it('should store the transactions on the block', () => {
+                assert.equal(blocks[blocks.length - 1].transactions.length, 5);
+            });
+            it('should clear the mempool', () => {
+                assert.equal(mempool.length, 0);
+            });
+        });
+    });
+    describe('with 15 mempool transactions', () => {
+        before(() => {
+            for (let i = 0; i < 15; i++) {
+                addTransaction({ sender: 'bob', to: 'alice' });
+            }
+        });
+        describe('after mining', () => {
+            before(() => {
+                mine();
+            });
+            it('should add to the blocks', () => {
+                assert.equal(blocks.length, 2);
+            });
+            it('should store the transactions on the block', () => {
+                assert.equal(blocks[blocks.length - 1].transactions.length, 10);
+            });
+            it('should reduce the mempool to 5', () => {
+                assert.equal(mempool.length, 5);
+            });
+            describe('after mining again', () => {
+                before(() => {
+                    mine();
+                });
+                it('should add to the blocks', () => {
+                    assert.equal(blocks.length, 3);
+                });
+                it('should store the transactions on the block', () => {
+                    assert.equal(blocks[blocks.length - 1].transactions.length, 5);
+                });
+                it('should clear the mempool', () => {
+                    assert.equal(mempool.length, 0);
+                });
+            });
+        });
+    });
+});
+
+
+
+
+
+----------------------------------------
+----------------------------------------
+
+     -----  5: Difficulty ----- 
+
+
+     // 
+Target Difficulty
+
+In bitcoin, the difficulty is adjusted every 2016 blocks, which is about every two weeks with the blocks being mined on average every 10 minutes.
+
+At that point, the difficulty is adjusted to attempt to keep the mining intervals around that 10 minute per block mark.
+
+🏁 Your Goal: Proof of Work
+
+Now it's time to actually mine the block. This is where we get the work part of proof of work!
+
+In the mine function, prior to hashing the block, add a nonce property. This property should start at 0
+Keep changing the nonce until you find a hash that is less than the TARGET_DIFFICULTY
+You can compare a BigInt to another BigInt using the JavaScript comparison operators. You can convert from a hash to be a BigInt by:
+
+const hash = SHA256("example");
+const int = BigInt(`0x${hash}`);
+     //
+
+
+
+------------
+index.js
+------------
+const SHA256 = require('crypto-js/sha256');
+const TARGET_DIFFICULTY = BigInt(0x0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
+const MAX_TRANSACTIONS = 10;
+const mempool = [];
+const blocks = [];
+
+function addTransaction(transaction) {
+    mempool.push(transaction);
+}
+
+function mine() {
+    let transactions = [];
+    while (transactions.length < MAX_TRANSACTIONS && mempool.length > 0) {
+        transactions.push(mempool.pop());
+    }
+    const block = { id: blocks.length, transactions }
+    block.nonce = 0;
+    let hash;
+    while (true) {
+        hash = SHA256(JSON.stringify(block)).toString();
+        if (BigInt(`0x${hash}`) < TARGET_DIFFICULTY) {
+            break;
+        }
+        block.nonce++;
+    }
+    blocks.push({ ...block, hash });
+}
+
+module.exports = {
+    TARGET_DIFFICULTY,
+    MAX_TRANSACTIONS,
+    addTransaction,
+    mine,
+    mempool,
+    blocks,
+};
+
+
+------------
+tests.js
+------------
+
+
+const { assert } = require('chai');
+const { mine, blocks, mempool, addTransaction, TARGET_DIFFICULTY } = require('../index');
+const SHA256 = require('crypto-js/sha256');
+
+describe('mine', () => {
+    describe('with 5 mempool transactions', () => {
+        before(() => {
+            for (let i = 0; i < 5; i++) {
+                addTransaction({ sender: 'bob', to: 'alice' });
+            }
+        });
+        describe('after mining', () => {
+            before(() => {
+                mine();
+            });
+            it('should add to the blocks', () => {
+                assert.equal(blocks.length, 1);
+            });
+            it('should store the transactions on the block', () => {
+                assert.equal(blocks[blocks.length - 1].transactions.length, 5);
+            });
+            it('should clear the mempool', () => {
+                assert.equal(mempool.length, 0);
+            });
+            it('should have a nonce', () => {
+                assert.isDefined(blocks[blocks.length - 1].nonce, "did not find a nonce on the block");
+            });
+            it('should have a hash lower than the target difficulty', () => {
+                const actual = blocks[blocks.length - 1].hash.toString();
+                const isLess = BigInt(`0x${actual}`) < TARGET_DIFFICULTY;
+                assert(isLess, "expected the hash to be less than the target difficulty");
+            });
+        });
+    });
+    describe('with 15 mempool transactions', () => {
+        before(() => {
+            for (let i = 0; i < 15; i++) {
+                addTransaction({ sender: 'bob', to: 'alice' });
+            }
+        });
+        describe('after mining', () => {
+            before(() => {
+                mine();
+            });
+            it('should add to the blocks', () => {
+                assert.equal(blocks.length, 2);
+            });
+            it('should store the transactions on the block', () => {
+                assert.equal(blocks[blocks.length - 1].transactions.length, 10);
+            });
+            it('should reduce the mempool to 5', () => {
+                assert.equal(mempool.length, 5);
+            });
+            it('should have a nonce', () => {
+                assert.isDefined(blocks[blocks.length - 1].nonce, "did not find a nonce on the block");
+            });
+            it('should have a hash lower than the target difficulty', () => {
+                const actual = blocks[blocks.length - 1].hash.toString();
+                const isLess = BigInt(`0x${actual}`) < TARGET_DIFFICULTY;
+                assert(isLess, "expected the hash to be less than the target difficulty");
+            });
+            describe('after mining again', () => {
+                before(() => {
+                    mine();
+                });
+                it('should add to the blocks', () => {
+                    assert.equal(blocks.length, 3);
+                });
+                it('should store the transactions on the block', () => {
+                    assert.equal(blocks[blocks.length - 1].transactions.length, 5);
+                });
+                it('should clear the mempool', () => {
+                    assert.equal(mempool.length, 0);
+                });
+                it('should have a nonce', () => {
+                    assert.isDefined(blocks[blocks.length - 1].nonce, "did not find a nonce on the block");
+                });
+                it('should have a hash lower than the target difficulty', () => {
+                    const actual = blocks[blocks.length - 1].hash.toString();
+                    const isLess = BigInt(`0x${actual}`) < TARGET_DIFFICULTY;
+                    assert(isLess, "expected the hash to be less than the target difficulty");
+                });
+            });
+        });
+    });
+});
+
+
+
+
+----------------------------------------
+----------------------------------------
+
+
+Blockchain Structure
+
+Adding a New Block
+
+The demo continues with a brief explanation of what it takes to add new blocks to the blockchain.
+
+When adding a new block to the blockchain, the new block needs to meet these requirements:
+
+Block index is one greater than latest block index.
+Block previous hash equal to latest block hash.
+Block hash meets difficulty requirement.
+Block hash is correctly calculated.
+
+
+
+----------------------------------------
+----------------------------------------
+
+BLOCKCHAIN DATA STRUCTURE
+1: Blocks and Hashes
+
+🏁 Your Goal: Return a Hash
+
+In your Block.js file, we have a class Block. Using the SHA256 function from the Crypto JS Library, return a valid hash in the toHash function.
+
+For now, there's no need to hash anything in particular since the block contains none of the components we mentioned above.
+
+
+
+------------
+Block.js
+------------
+
+const SHA256 = require('crypto-js/sha256');
+
+class Block {
+    constructor(id, transactions, nonce) {
+        this.id = id;
+        this.transactions = transactions;
+        this.nonce = nonce;
+        this.previousHash = ''; // Placeholder for previous hash, you'll need to set this when connecting blocks.
+    }
+
+    toHash() {
+        const blockString = JSON.stringify({
+            id: this.id,
+            transactions: this.transactions,
+            nonce: this.nonce,
+            previousHash: this.previousHash
+        });
+
+        return SHA256(blockString).toString();
+    }
+}
+
+module.exports = Block;
+
+
+------------
+HashTest.js
+------------
+
+const SHA256 = require('crypto-js/sha256');
+
+class Block {
+    constructor(id, transactions, nonce) {
+        this.id = id;
+        this.transactions = transactions;
+        this.nonce = nonce;
+        this.previousHash = ''; // Placeholder for previous hash, you'll need to set this when connecting blocks.
+    }
+
+    toHash() {
+        const blockString = JSON.stringify({
+            id: this.id,
+            transactions: this.transactions,
+            nonce: this.nonce,
+            previousHash: this.previousHash
+        });
+
+        return SHA256(blockString).toString();
+    }
+}
+
+module.exports = Block;
+
+
+----------------------------------------
+----------------------------------------
+
+BLOCKCHAIN DATA STRUCTURE
+2: What's in a Hash?
+
+
+//
+Adding Data to the Hash
+
+Now it's time to add data to our hash. This will ensure that the block's hash is tied to its contents!
+
+🏁 Your Goal: Hash the Data
+
+When creating a new block, data will be passed to its constructor:
+
+const block = new Block("Alice sent Bob 1 BTC");
+
+console.log( block.data ); // Alice sent Bob 1 BTC
+☝️ As shown above, let's add a data property to the Block.
+
+Add a constructor to our Block class that takes one argument data and assigns it to this.data
+Once you have added data to the block, use this data to calculate the block's hash in the toHash function!
+//
+
+
+
+-----------
+Block.js
+-----------
+
+
+const SHA256 = require('crypto-js/sha256');
+
+class Block {
+    constructor(data) {
+        this.data = data;
+    }
+
+    toHash() {
+        return SHA256(this.data);
+    }
+}
+
+module.exports = Block;
+
+
+-----------
+blockSHATest.js
+-----------
+
+
+const Block = require('../Block');
+const assert = require('assert');
+const SHA256 = require("crypto-js/sha256");
+
+describe('Block', function() {
+    it('should store a random name', function() {
+        const randomName = require('faker').name.findName();
+        assert.equal(randomName, new Block(randomName).data)
+    });
+
+    it('should hash some random data', function() {
+        const randomEmail = require('faker').internet.email();
+        const myHash = SHA256(randomEmail).toString();
+        const yourHash = new Block(randomEmail).toHash().toString();
+        assert.equal(myHash, yourHash);
+    })
+})
+
+
+
+----------------------------------------
+----------------------------------------
+
+BLOCKCHAIN DATA STRUCTURE
+3: The Genesis Block
+
+Blockchain Time
+
+We have a new file: Blockchain.js. How exciting! 😁
+
+This stage is going to focus on adding the first block to our new Blockchain class! The first block is often referred to as the Genesis Block.
+
+🏁 Your Goal: Add the Genesis Block
+
+The Blockchain.js file contains the Blockchain class with a chain array. Let's add the Genesis Block to this array.
+
+Create a new Block in the Blockchain constructor then add it to the chain array.
+
+
+-----------
+Blockchain.js
+-----------
+
+
+const Block = require('./Block');
+
+class Blockchain {
+    constructor() {
+        // Create the Genesis Block
+        const genesisBlock = new Block('Genesis Block', 0, [], 0); // Example data and parameters
+
+        // Initialize the chain array with the Genesis Block
+        this.chain = [genesisBlock];
+    }
+
+
+    //2nd constructor version
+
+    //constructor() {
+        this.chain = [ new Block() ];
+    }
+}
+
+module.exports = Blockchain;
+
+
+
+
+
+
+
+
+
