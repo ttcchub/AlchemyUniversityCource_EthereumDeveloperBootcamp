@@ -414,6 +414,12 @@ describe('mine', () => {
 
 
 
+
+
+
+
+
+
 ----------------------------------------
 ----------------------------------------
 
@@ -502,6 +508,10 @@ describe('mine', () => {
         });
     });
 });
+
+
+
+
 
 
 
@@ -631,6 +641,13 @@ describe('mine', () => {
         });
     });
 });
+
+
+
+
+
+
+
 
 
 
@@ -799,6 +816,13 @@ describe('mine', () => {
 
 
 
+
+
+
+
+
+
+
 ----------------------------------------
 ----------------------------------------
 
@@ -815,6 +839,13 @@ Block index is one greater than latest block index.
 Block previous hash equal to latest block hash.
 Block hash meets difficulty requirement.
 Block hash is correctly calculated.
+
+
+
+
+
+
+
 
 
 
@@ -890,6 +921,16 @@ class Block {
 module.exports = Block;
 
 
+
+
+
+
+
+
+
+
+
+
 ----------------------------------------
 ----------------------------------------
 
@@ -962,6 +1003,12 @@ describe('Block', function() {
 
 
 
+
+
+
+
+
+
 ----------------------------------------
 ----------------------------------------
 
@@ -1011,6 +1058,257 @@ module.exports = Blockchain;
 
 
 
+
+
+
+
+
+
+----------------------------------------
+----------------------------------------
+
+4: Adding Blocks
+
+🏁 Your Goal: Create an addBlock Function
+
+Let's create an addBlock function on our Blockchain class.
+
+This function should take in a new block and add it to the chain array:
+
+const blockchain = new Blockchain();
+const block = new Block("Charlie sent Dave 2 BTC");
+
+blockchain.addBlock(block);
+
+console.log(blockchain.chain.length); // 2
+☝️ Remember we should have both the genesis block and the new block now.
+
+
+
+-----------
+Blockchain.js
+-----------
+
+
+
+const Block = require('./Block');
+
+class Blockchain {
+    constructor() {
+        this.chain = [ new Block() ];
+    }
+
+    addBlock(block) {
+        this.chain.push(block);
+    }
+}
+
+module.exports = Blockchain;
+
+
+
+
+-----------
+Block.js
+-----------
+
+const SHA256 = require('crypto-js/sha256');
+
+class Block {
+    constructor(data) {
+        this.data = data;
+    }
+
+    toHash() {
+        return SHA256(this.data);
+    }
+}
+
+module.exports = Block;
+
+
+
+-----------
+addingBlocksTest.js
+-----------
+
+const Blockchain = require('../Blockchain');
+const Block = require('../Block');
+const assert = require('assert');
+
+let blockchain;
+
+describe('Blockchain', function() {
+    before(() => {
+        blockchain = new Blockchain();
+    });
+
+    it('should have an addBlock function', function() {
+        assert.equal(typeof blockchain.addBlock, 'function');
+    });
+
+    describe('adding new blocks', function() {
+        let block1;
+        let block2;
+        before(() => {
+            block1 = new Block("Some data");
+            block2 = new Block("Some other data");
+            blockchain.addBlock(block1);
+            blockchain.addBlock(block2);
+        });
+
+        it('should be a chain of three blocks', function() {
+            assert.equal(blockchain.chain.length, 3);
+        });
+
+        it('should include block1 and block2', function () {
+            assert(blockchain.chain.some((x) => x === block1), "Could not find block1. Remember to push the block argument in addBlock!")
+            assert(blockchain.chain.some((x) => x === block2), "Could not find block1. Remember to push the block argument in addBlock!")
+        });
+    });
+});
+
+
+
+
+
+
+
+
+
+
+
+----------------------------------------
+----------------------------------------
+BLOCKCHAIN DATA STRUCTURE
+5: Linking The Blocks
+
+
+Previous Hash
+
+It's time to add one more crucial input to our block's hash calculation: the hash of the previous block in the chain.
+Linking Blocks
+
+This creates a chain where any change to the data of an earlier block will affect each subsequent block.
+🔍 Let's take a look at what a change would do in details.
+🏁 Your Goal: Link Blocks
+
+To link the blocks you have to accomplish two things:
+Add a previousHash property to each block. The value of this property should be the hash of the block before it in the chain.
+Use this previousHash property in the calculation of the block's hash.
+💡 Hints
+
+A good spot to add the previousHash property on the block would be in the addBlock function, where a block is placed on the chain.
+So far, the Block class in your Block.js file does not yet contain a previousHash property and currently only hashes this.data of a block - you must also include the block's this.previousHash property in the toHash function!
+You can add multiple inputs to the SHA256 function by using the + operator, for example:
+const hash = SHA256("dog" + "cat); // hash of dog and cat together
+
+
+
+
+-----------
+Blockchain.js
+-----------
+
+const Block = require('./Block');
+
+class Blockchain {
+    constructor() {
+        this.chain = [new Block()];
+    }
+
+    addBlock(block) {
+        block.previousHash = this.chain[this.chain.length - 1].toHash();
+        this.chain.push(block);
+    }
+}
+
+module.exports = Blockchain;
+
+-----------
+Block.js
+-----------
+
+const SHA256 = require('crypto-js/sha256');
+
+class Block {
+    constructor(data) {
+        this.data = data;
+    }
+    
+    toHash() {
+        return SHA256(this.data + this.previousHash);
+    }
+}
+
+module.exports = Block;
+
+
+
+
+
+
+
+
+
+
+----------------------------------------
+----------------------------------------
+BLOCKCHAIN DATA STRUCTURE
+6: Validating the Chain
+
+
+Chain Validation
+
+Blockchains are run by a network of computers. When a computer finds a new block, it broadcasts its new version of the blockchain to all of its peers. There may be multiple versions of the blockchain at any given time. However, the longest valid blockchain is the accepted one.
+🔍 Let's take a closer look at the logic behind this in details.
+🏁 Your Goal: Create an isValid Function
+
+Create a function called isValid on our Blockchain that will return true or false if a block is valid or invalid respectively
+isValid should check the integrity of every block in its chain by looking at each block's previousHash field and making sure that it is equal to the hash of the block before it
+💡 Hint
+
+To compare the output of the SHA256 function you will need to convert it into a string (.toString) before comparing. Example:
+const hash1 = SHA256("a");
+const hash2 = SHA256("a");
+
+console.log(hash1 === hash2); // false
+console.log(hash1.toString() === hash2.toString()); // true
+👀 Notice that first one is false! These two are objects and are compared by reference which is why we need to convert it to a string!
+
+
+-----------
+Blockchain.js
+-----------
+
+const Block = require('./Block');
+
+class Blockchain {
+
+    constructor() {
+        this.chain = [new Block()];
+    }
+
+    addBlock(block) {
+        block.previousHash = this.chain[this.chain.length - 1].toHash();
+        this.chain.push(block);
+    }
+
+    isValid() {
+        for(let i = this.chain.length - 1; i > 0; i--){
+            const block = this.chain[i];
+            const prev = this.chain[i-1];
+
+            if(block.previousHash.toString() !== prev.toHash().toString())
+            {
+                return false;
+            }
+        }
+    return true;
+    }
+}
+
+module.exports = Blockchain;
 
 
 
