@@ -1284,31 +1284,169 @@ Blockchain.js
 const Block = require('./Block');
 
 class Blockchain {
-
-    constructor() {
-        this.chain = [new Block()];
+  
+constructor(){
+    this.chain = [new Block()];
     }
 
     addBlock(block) {
-        block.previousHash = this.chain[this.chain.length - 1].toHash();
-        this.chain.push(block);
+        block.previousHash = this.chain[
+            this.chain.length - 1].toHash();
+            this.chain.push(block);
     }
 
-    isValid() {
-        for(let i = this.chain.length - 1; i > 0; i--){
+    isValid(){
+        for(let i = this.chain.length - 1; i>0; i--){
             const block = this.chain[i];
             const prev = this.chain[i-1];
 
-            if(block.previousHash.toString() !== prev.toHash().toString())
+            if(block.previousHash.toString()
+            !== prev.toHash().toString())
             {
                 return false;
             }
         }
-    return true;
+        return true;
     }
 }
 
 module.exports = Blockchain;
+
+
+-----------
+Block.js
+-----------
+
+const SHA256 = require('crypto-js/sha256');
+
+class Block {
+    constructor(data) {
+        this.data = data;
+    }
+    
+    toHash() {
+        return SHA256(this.data + this.previousHash);
+    }
+}
+
+module.exports = Block;
+
+
+
+
+
+-----------
+validationTests.js
+-----------
+
+
+const Blockchain = require('../Blockchain');
+const Block = require('../Block');
+const assert = require('assert');
+const SHA256 = require("crypto-js/sha256");
+
+describe('Blockchain', function() {
+  let blockchain;
+  beforeEach(() => {
+    blockchain = new Blockchain();
+    blockchain.addBlock(new Block("Dan"));
+    blockchain.addBlock(new Block("Peter"));
+    blockchain.addBlock(new Block("James"));
+  });
+  
+  it('should be considered valid', function() {
+    assert(blockchain.isValid());
+  });
+
+  describe('tampering with a previousHash', function() {
+    beforeEach(() => {
+      blockchain.chain[1].previousHash = SHA256("gibberish");
+    });
+
+    it('should not be considered valid', function() {
+      assert(!blockchain.isValid());
+    });
+  });
+  
+  describe('tampering with data', function() {
+    beforeEach(() => {
+      blockchain.chain[0].data = "Something Else";
+    });
+
+    it('should not be considered valid', function() {
+      assert(!blockchain.isValid());
+    });
+  });
+});
+
+
+
+
+
+
+
+
+
+
+Further Reading on the Bitcoin Network
+
+51% Attack
+
+Most of us have heard the term 51% attack before, and it sounds terrifying! 😱
+
+A 51% attack refers to a point in time where a group of miners have control of more than 50% of the network and wish to act maliciously. How much damage can actually be done during this time? 🤔
+
+Let's think about what we have learned. Every block is built upon the hash of the block before it. To change a block that has been confirmed many times, let's say the block has been confirmed 6 times for example, the attacking blockchain would need to mine 8 new blocks before the existing blockchain mines 1 to be accepted as the Main Chain. This would require more than just 51% of the resources! 💰
+
+💭 Of course, the attacking blockchain could also just stubbornly stick to its chain for a longer period of time. The more time they do this, the more expensive the attack becomes. If they had these kind of resources, they could make significant money just playing along honestly!
+
+What can the attack actually accomplish? One thing that an attack could do is double-spend a transaction, by choosing to override it within the new blocks. So if someone sent you a large payment, they could attack the network and essentially override that payment. Of course, this attack would cost a lot of money, so it's very unlikely this would be cost-effective. For safety purposes, if someone sends you millions of dollars on the blockchain, maybe wait a day or two to be sure it's cleared. 😉
+
+We'll talk more about UTXOs which will help us understand how double-spends are prevented.
+
+Double-Spends can occur during a blockchain fork, as shown by the bug caused by the Berkeley DB when the bitcoin network was partially between versions. See BIP_0050.
+
+Genesis Block and the Blockchain Explorer
+
+It's a good time to check out the Genesis Block of Bitcoin.
+
+☝️ How many properties do you recognize at this point?
+
+The number of confirmations is the number of blocks since the genesis block. Since the genesis block is the first block, this is also the block height of the blockchain!
+
+It's interesting that if you look at the nonce of the genesis block, it's 2,083,236,893. If you take a look at a more recent block, 632900 for example, you'll see that the nonce is actually much lower. Why is that, isn't the difficulty supposed to be getting harder as the network grows? 🤔
+
+It turns out that the block nonce is actually a 32-bit field, and 2 ** 32 is 4,294,967,296, so that is the max size of a nonce. What happens when the miner reaches this point? They can change anything else in the block header to also increase the randomness. Other properties include:
+
+Software Version - Tracks Bitcoin software upgrades
+Previous Block Hash - Hash of the block before this one
+Merkle Root - We haven't gone over this yet, its a hash that represent all the transactions!
+Timestamp - Approximate time (less than two hours in the future according to consensus rules)
+Target - Difficulty Target that dictates how small the Proof Of Work must be
+☝️ As you can imagine by looking at these properties, it was initially the timestamp that the miners fiddled with when they need to restart their search for a valid Proof-of-Work. Beyond that, they can start to change the script of the coinbase transaction which gives them additional nonce space.
+
+
+
+
+
+----------------------------------------
+----------------------------------------
+ECDSA Node
+
+The best way to deeply understand blockchain is to put yourself into development mode. What would it be like to build your own blockchain? Let's start by applying our knowledge of hashes and digital signatures to our very first project: ECDSA Node.
+In this project you'll have a simple react front-end which will communicate with a single server. This server will be responsible for transferring balances between accounts. Since it's a single server, it is centralized, so we'll need to trust that the server operator is not malicious for this exercise (more on this later!).
+🏁 Your Goal: ECDSA
+
+This project begins with a client that is allowed to transfer any funds from any account to another account. That's not very secure. By applying digital signatures we can require that only the user with the appropriate private key can create a signature that will allow them to move funds from one account to the other. Then, the server can verify the signature to move funds from one account to another.
+Incorporate Public Key Cryptography so transfers can only be completed with a valid signature
+The person sending the transaction should have to verify that they own the private key corresponding to the address that is sending funds
+🤔 While you're working through this project consider the security implications of your implementation decisions. What if someone intercepted a valid signature, would they be able to replay that transfer by sending it back to the server?
+Set up instructions
+
+Video Instructions
+
+Check out the project overview and video instructions in the following video:
+
 
 
 
