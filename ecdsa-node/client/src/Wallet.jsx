@@ -1,29 +1,27 @@
 import server from "./server";
+
 import * as secp from 'ethereum-cryptography/secp256k1';
-import {toHex} from 'ethereum-cryptography/utils';
 
-/*
-  send tx, a signed tx, to server, then server recovers pub key from
-  that sig, and only goes through if that public key has those funds
-*/
+import { sha256 } from "ethereum-cryptography/sha256.js";
+
+// import {toHex} from 'ethereum-cryptography/utils';
 
 
-// const privateKey = secp.secp256k1.utils.randomPrivateKey()
-// console.log("Private Key: ",toHex(privateKey))
 
-// const publicKey = secp.secp256k1.getPublicKey(privateKey);
-// console.log("Public Key: ",toHex(publicKey))
+import { secp256k1 } from "ethereum-cryptography/secp256k1";
+import {toHex, utf8ToBytes} from "ethereum-cryptography/utils";
+
 
 function Wallet({ address, setAddress, balance, setBalance, privateKey, setPrivateKey }) {
   async function onChange(evt) {
-    const privateKey = evt.target.value;
+    const privateKey = evt.target.value
     setPrivateKey(privateKey);
-    getPublicKey(privateKey);
-
     console.log(privateKey)
 
-
     const address = toHex(secp.secp256k1.getPublicKey(privateKey));
+    // const address = secp256k1.getPublicKey(sha256(utf8ToBytes(privateKey)))
+    // const address = evt.target.value;
+
     setAddress(address);
     if (address) {
       const {
@@ -41,11 +39,13 @@ function Wallet({ address, setAddress, balance, setBalance, privateKey, setPriva
 
       <label>
         Private Key
-        <input placeholder="Type private key" value={privateKey} onChange={onChange}></input>
+        <input placeholder="Type private key" value={privateKey} onChange={onChange}>
+
+        </input>
       </label>
 
       <div>
-        Address: {address.slice(0,10)+'...'}
+        Address: {address.slice(0,5)+'...'+address.slice(60,66)}
       </div>
 
       <div className="balance">Balance: {balance}</div>
